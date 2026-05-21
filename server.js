@@ -69,6 +69,9 @@ app.use(express.static("public"));
 // --------------------
 // SSR ROUTES
 // --------------------
+app.get("/", (req, res) => {
+    res.redirect("/ssr");
+});
 
 // dashboard
 app.get("/ssr", async (req, res) => {
