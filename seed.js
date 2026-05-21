@@ -1,26 +1,44 @@
+require("dotenv").config();
+
 const mongoose = require("mongoose");
 const Slot = require("./models/Slot");
 
-// connect to DB
-mongoose.connect("mongodb://127.0.0.1:27017/spacesync");
+// connect using Atlas URL from .env
+mongoose.connect(process.env.MONGO_URI);
 
-// seed initial slots
 async function seed() {
 
-    await Slot.deleteMany(); // remove existing data
+    try {
 
-    const slots = [];
+        // remove old slots
+        await Slot.deleteMany();
 
-    // create 5 slots
-    for (let i = 1; i <= 5; i++) {
-        slots.push({ slotNumber: i });
+        const slots = [];
+
+        // create 5 parking slots
+        for (let i = 1; i <= 5; i++) {
+
+            slots.push({
+                slotNumber: i,
+                vehicle: null,
+                vehicleImage: null
+            });
+
+        }
+
+        await Slot.insertMany(slots);
+
+        console.log("✅ Slots created in Atlas DB");
+
+        process.exit();
+
+    } catch (err) {
+
+        console.log(err);
+        process.exit(1);
+
     }
 
-    await Slot.insertMany(slots);
-
-    console.log("Slots created in DB");
-
-    process.exit();
 }
 
 seed();
