@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SpaceSync SSR Dashboard</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #eef2f3, #dfe9f3);
+            min-height: 100vh;
+            padding: 40px;
+            color: #222;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 50px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .message {
+            margin: 20px auto;
+            width: 420px;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 18px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .success {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .error {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .forms {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-bottom: 50px;
+        }
+
+        .form-box {
+            background: white;
+            width: 380px;
+            padding: 25px;
+            border-radius: 18px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+
+        .form-box h2 {
+            margin-bottom: 20px;
+            color: #111827;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 12px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            font-size: 15px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 18px;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: #111827;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.25s ease;
+        }
+
+        button:hover {
+            background: #1f2937;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: gray;
+            cursor: not-allowed;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .slot {
+            border-radius: 22px;
+            padding: 25px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 10px 22px rgba(0,0,0,0.12);
+            transition: transform 0.25s ease;
+        }
+
+        .slot:hover {
+            transform: translateY(-5px);
+        }
+
+        .empty {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+        }
+
+        .occupied {
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+        }
+
+        .slot-number {
+            font-size: 30px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .vehicle-name {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 15px;
+            opacity: 0.9;
+        }
+
+        .vehicle-image {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            margin-top: 18px;
+            border-radius: 14px;
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🚗 SpaceSync Parking</h1>
+
+<!-- success / error messages -->
+<% if (success) { %>
+    <div class="message success">
+        <%= success %>
+    </div>
+<% } %>
+
+<% if (error) { %>
+    <div class="message error">
+        <%= error %>
+    </div>
+<% } %>
+
+<!-- forms -->
+<div class="forms">
+
+    <!-- park vehicle -->
+    <div class="form-box">
+
+        <h2>Park Vehicle</h2>
+
+        <form
+            method="POST"
+            action="/ssr/park"
+            enctype="multipart/form-data"
+        >
+
+            <input
+                type="text"
+                name="vehicle"
+                placeholder="Enter vehicle number"
+                required
+            >
+
+            <input
+                type="file"
+                name="vehicleImage"
+                required
+            >
+
+            <button type="submit">
+                Park Vehicle
+            </button>
+
+        </form>
+
+    </div>
+
+    <!-- exit vehicle -->
+    <div class="form-box">
+
+        <h2>Exit Vehicle</h2>
+
+        <form method="POST" action="/ssr/exit">
+
+            <input
+                type="text"
+                name="vehicle"
+                placeholder="Enter vehicle to exit"
+                required
+            >
+
+            <button type="submit">
+                Exit Vehicle
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- slots -->
+<div class="container">
+
+    <% slots.forEach(slot => { %>
+
+        <div class="slot <%= slot.vehicle ? 'occupied' : 'empty' %>">
+
+            <div class="slot-number">
+                Slot <%= slot.slotNumber %>
+            </div>
+
+            <div class="vehicle-name">
+                <%= slot.vehicle ? slot.vehicle : "Empty" %>
+            </div>
+
+            <div class="status">
+                <%= slot.vehicle ? "Occupied" : "Available" %>
+            </div>
+
+            <% if (slot.vehicleImage) { %>
+
+                <img
+                    src="<%= slot.vehicleImage %>"
+                    class="vehicle-image"
+                >
+
+            <% } %>
+
+        </div>
+
+    <% }) %>
+
+</div>
+
+<!-- socket.io realtime updates -->
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+    const socket = io();
+
+    socket.on("slotsUpdated", async () => {
+
+        const res = await fetch("/parking/slots");
+        const slots = await res.json();
+
+        const container = document.querySelector(".container");
+
+        container.innerHTML = "";
+
+        slots.forEach(slot => {
+
+            const div = document.createElement("div");
+
+            div.className =
+                "slot " +
+                (slot.vehicle ? "occupied" : "empty");
+
+            div.innerHTML = `
+                <div class="slot-number">
+                    Slot ${slot.slotNumber}
+                </div>
+
+                <div class="vehicle-name">
+                    ${slot.vehicle ? slot.vehicle : "Empty"}
+                </div>
+
+                <div class="status">
+                    ${slot.vehicle ? "Occupied" : "Available"}
+                </div>
+
+                ${
+                    slot.vehicleImage
+                    ?
+                    `<img
+                        src="${slot.vehicleImage}"
+                        class="vehicle-image"
+                    >`
+                    :
+                    ""
+                }
+            `;
+
+            container.appendChild(div);
+        });
+    });
+</script>
+
+</body>
+</html>
